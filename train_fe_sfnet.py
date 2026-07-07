@@ -2,7 +2,7 @@ import argparse
 
 import torch
 
-from models.sds_dsfb_transformer import SDSDSFBTransformer
+from models.fe_sfnet import FESFNet
 from train_common import (
     ExperimentConfig,
     add_common_args,
@@ -35,7 +35,7 @@ def add_bool_arg(parser, name: str, default: bool, help_text: str):
 
 
 def build_parser():
-    parser = argparse.ArgumentParser(description="SDS-DSFB Transformer for CWRU (10-class)")
+    parser = argparse.ArgumentParser(description="FE-SFNet for bearing fault diagnosis")
     add_common_args(parser)
     parser.add_argument("--d_model", type=int, default=128)
     parser.add_argument("--n_blocks", type=int, default=1, help="Number of DSFB encoder layers")
@@ -83,7 +83,7 @@ def build_parser():
     parser.add_argument("--sk_fusion", dest="no_sk_fusion", action="store_false",
                         help="Enable SKFusion1D branch fusion for ablation runs")
     parser.add_argument("--frontend_dilations", type=str, default="1,4,12",
-                        help="Comma-separated dilations for the SDS front-end")
+                        help="Comma-separated dilations for RFE-Stem")
     parser.set_defaults(snr_list="-12,-11,-10,-9,-8,-7,-6,-5,-4,-2,0,2,4,6,8,10,12")
     return parser
 
@@ -91,7 +91,7 @@ def build_parser():
 def build_model(args):
     frontend_dilations = parse_dilations(args.frontend_dilations)
     token_mixer = "self_attention" if args.use_mhsa else args.token_mixer
-    model = SDSDSFBTransformer(
+    model = FESFNet(
         num_classes=args.num_classes,
         d_model=args.d_model,
         num_layers=args.n_blocks,
@@ -128,13 +128,13 @@ def main():
     print(f"Using device: {device}")
 
     print("=" * 60)
-    print("SDS-DSFB Transformer Training")
+    print("FE-SFNet Training")
     print("=" * 60)
 
     model, frontend_dilations, token_mixer = build_model(args)
     model = model.to(device)
-    print(f"[INFO] SDS front-end dilations: {frontend_dilations}")
-    print(f"[INFO] DSFB layers: {args.n_blocks}, d_model={args.d_model}, mlp_ratio={args.mlp_ratio}")
+    print(f"[INFO] RFE-Stem dilations: {frontend_dilations}")
+    print(f"[INFO] SF Blocks: {args.n_blocks}, d_model={args.d_model}, mlp_ratio={args.mlp_ratio}")
     print(f"[INFO] token_mixer={token_mixer}, nhead={args.nhead}, dsfb_num_heads={args.dsfb_num_heads}")
     print(f"[INFO] dsfb_freq_kernel_size={args.dsfb_freq_kernel_size}, haar_wavelet={not args.no_haar_wavelet}")
     print(f"[INFO] identity_branch={not args.no_identity_branch}")
@@ -144,19 +144,19 @@ def main():
 
     is_mhsa = token_mixer == "self_attention"
     config = ExperimentConfig(
-        model_key="sds_mhsa_transformer" if is_mhsa else "sds_dsfb_transformer",
-        model_display_name="SDS-MHSA Transformer" if is_mhsa else "SDS-DSFB Transformer",
+        model_key="fe_sfnet_mhsa" if is_mhsa else "fe_sfnet",
+        model_display_name="FE-SFNet-MHSA" if is_mhsa else "FE-SFNet",
         confusion_title=(
-            "Confusion Matrix - SDS-MHSA Transformer"
+            "Confusion Matrix - FE-SFNet-MHSA"
             if is_mhsa
-            else "Confusion Matrix - SDS-DSFB Transformer"
+            else "Confusion Matrix - FE-SFNet"
         ),
         noise_plot_title=(
-            "SDS-MHSA Transformer Robustness Under Different Noise Levels"
+            "FE-SFNet-MHSA Robustness Under Different Noise Levels"
             if is_mhsa
-            else "SDS-DSFB Transformer Robustness Under Different Noise Levels"
+            else "FE-SFNet Robustness Under Different Noise Levels"
         ),
-        history_title_suffix="SDS-MHSA Transformer" if is_mhsa else "SDS-DSFB Transformer",
+        history_title_suffix="FE-SFNet-MHSA" if is_mhsa else "FE-SFNet",
         classification_zero_division=0,
     )
     run_experiment(args, model, device, config)
@@ -164,3 +164,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

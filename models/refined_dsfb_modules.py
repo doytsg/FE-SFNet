@@ -1,4 +1,4 @@
-"""Lean no-phase CSMoH token mixer for SDS-DSFB.
+"""Lightweight spectral token mixer and FFN blocks for FE-SFNet.
 
 The default mixer is the concise H6R4+R8 variant: six complete low-rank
 spectral heads, all-head softmax routing, and a head-specific rank-8 channel

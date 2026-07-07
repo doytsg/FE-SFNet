@@ -1,4 +1,4 @@
-﻿"""SDS-DSFB Transformer with the lean H6R4+R8 spectral MoH mixer."""
+"""FE-SFNet implementation with the lightweight Spectral Filter Mixer."""
 
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ def _build_sinusoidal_pe(max_len: int, d_model: int) -> torch.Tensor:
     return pe
 
 
-class SDSDSFBTransformer(nn.Module):
+class FESFNet(nn.Module):
     def __init__(
         self,
         num_classes: int = 10,
@@ -140,9 +140,12 @@ class SDSDSFBTransformer(nn.Module):
         return self.head(x)
 
 
+SDSDSFBTransformer = FESFNet
+
+
 if __name__ == "__main__":
     for mixer in ("no_phase", "self_attention", "dsfb"):
-        model = SDSDSFBTransformer(
+        model = FESFNet(
             num_classes=10,
             d_model=128,
             num_layers=1,
@@ -155,3 +158,4 @@ if __name__ == "__main__":
         x = torch.randn(2, 1, 2048)
         y = model(x)
         print(mixer, tuple(y.shape), sum(p.numel() for p in model.parameters()), "aux", float(model.aux_loss()))
+

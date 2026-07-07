@@ -343,7 +343,7 @@ class PlainConvFrontEnd1D(nn.Module):
     """Minimal strided-conv front-end used as the ``--no_sds_frontend`` (A1) baseline.
 
     The replacement is intentionally *parameter-light* so the ablation can be
-    interpreted as "remove the CS-SDS front-end and put back the simplest
+    interpreted as "remove RFE-Stem and put back the simplest
     sensible alternative". Concretely:
 
         Conv(1   -> 32 , k=15, s=2)  + BN + GELU
@@ -352,8 +352,8 @@ class PlainConvFrontEnd1D(nn.Module):
         AvgPool(k=2, s=2)                       # parameter-free 16x downsample
 
     The last 16x stage uses parameter-free average pooling (mirroring the
-    ``simple_down4`` option of the SDS front-end), so A1 ends up *cheaper*
-    than the full SDS front-end (~31K vs ~70K front-end params). This means
+    ``simple_down4`` option of RFE-Stem), so A1 ends up *cheaper*
+    than the full RFE-Stem (~31K vs ~70K front-end params). This means
     any accuracy improvement of Full over A1 cannot be attributed to A1
     having fewer / weaker capacity than necessary.
 
@@ -416,13 +416,13 @@ class ResidualSeparableConvBlock1D(nn.Module):
 
 
 class MatchedConvFrontEnd1D(nn.Module):
-    """Parameter-matched plain Conv front-end for the A1B CS-SDS ablation.
+    """Parameter-matched plain Conv front-end for the A1B RFE-Stem ablation.
 
-    This keeps the same 16x downsampling and d_model output as CS-SDS, but
-    avoids all CS-SDS-specific ideas: no sparse multi-dilation branches, no
+    This keeps the same 16x downsampling and d_model output as RFE-Stem, but
+    avoids all RFE-Stem-specific ideas: no sparse multi-dilation branches, no
     Haar-LPR downsampling, no cross-scale coupling, and no SK fusion. Two plain
     residual depthwise-separable refinement blocks make its parameter count
-    close to the full no-SK CS-SDS front-end, so the comparison is not merely a
+    close to the full no-SK RFE-Stem, so the comparison is not merely a
     capacity mismatch.
     """
 

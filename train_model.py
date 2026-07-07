@@ -1,4 +1,4 @@
-﻿import argparse
+import argparse
 
 import torch
 
@@ -9,7 +9,7 @@ from models.drsn_cw import DRSN_CW, DRSN_CW_Lite
 from models.gtfenet import GTFENET
 from models.liconvformer import Liconvformer
 from models.mslk_transformer import MSLKTransformer
-from models.sds_dsfb_transformer import SDSDSFBTransformer
+from models.fe_sfnet import FESFNet
 from models.tslanet import TSLANet
 from models.wdcnn import WDCNN
 from train_common import (
@@ -278,15 +278,15 @@ def run_mslk(args, device):
     run_experiment(args, model, device, config)
 
 
-def run_sds_dsfb(args, device):
+def run_fe_sfnet(args, device):
     frontend_dilations = parse_dilations(args.frontend_dilations)
     token_mixer = "self_attention" if args.use_mhsa else args.token_mixer
     use_lean_csmoh = token_mixer in ("no_phase", "csmoh_plus", "competitive_moh_dsfb")
     print("=" * 60)
-    print("SDS-DSFB Transformer Training")
+    print("FE-SFNet Training")
     print("=" * 60)
-    print(f"[INFO] SDS front-end dilations: {frontend_dilations}")
-    print(f"[INFO] DSFB layers: {args.n_blocks}, d_model={args.d_model}, mlp_ratio={args.mlp_ratio}")
+    print(f"[INFO] RFE-Stem dilations: {frontend_dilations}")
+    print(f"[INFO] SF Blocks: {args.n_blocks}, d_model={args.d_model}, mlp_ratio={args.mlp_ratio}")
     print(
         f"[INFO] token_mixer={token_mixer}, nhead={args.nhead}, "
         f"dsfb_num_heads={args.dsfb_num_heads}, moh_heads={args.moh_num_heads}, "
@@ -346,24 +346,24 @@ def run_sds_dsfb(args, device):
         model_kwargs.update(
             moh_expert_strength=args.moh_expert_strength,
         )
-    model = SDSDSFBTransformer(**model_kwargs).to(device)
+    model = FESFNet(**model_kwargs).to(device)
     maybe_report_model_stats(model, args.window_size, device, THOP_AVAILABLE, profile, clever_format)
 
     is_mhsa = token_mixer == "self_attention"
     config = ExperimentConfig(
-        model_key="sds_mhsa_transformer" if is_mhsa else "sds_dsfb_transformer",
-        model_display_name="SDS-MHSA Transformer" if is_mhsa else "SDS-DSFB Transformer",
+        model_key="fe_sfnet_mhsa" if is_mhsa else "fe_sfnet",
+        model_display_name="FE-SFNet-MHSA" if is_mhsa else "FE-SFNet",
         confusion_title=(
-            "Confusion Matrix - SDS-MHSA Transformer"
+            "Confusion Matrix - FE-SFNet-MHSA"
             if is_mhsa
-            else "Confusion Matrix - SDS-DSFB Transformer"
+            else "Confusion Matrix - FE-SFNet"
         ),
         noise_plot_title=(
-            "SDS-MHSA Transformer Robustness Under Different Noise Levels"
+            "FE-SFNet-MHSA Robustness Under Different Noise Levels"
             if is_mhsa
-            else "SDS-DSFB Transformer Robustness Under Different Noise Levels"
+            else "FE-SFNet Robustness Under Different Noise Levels"
         ),
-        history_title_suffix="SDS-MHSA Transformer" if is_mhsa else "SDS-DSFB Transformer",
+        history_title_suffix="FE-SFNet-MHSA" if is_mhsa else "FE-SFNet",
         classification_zero_division=0,
     )
     run_experiment(args, model, device, config)
@@ -451,15 +451,16 @@ def build_parser():
     mslk.set_defaults(snr_list="-12,-11,-10,-9,-8,-7,-6,-5,-4,-2,0,2,4,6,8,10,12")
     mslk.set_defaults(run_fn=run_mslk)
 
-    sds_dsfb = add_base_subparser(
+    fe_sfnet = add_base_subparser(
         subparsers,
-        "sgsfnet",
-        "Train SGSFNet",
-        aliases=["sds_dsfb", "sds_dsfb_transformer", "sds"],
+        "fesfnet",
+        "Train FE-SFNet",
+        aliases=["fe-sfnet", "fe_sfnet", "sds_dsfb", "sds_dsfb_transformer", "sds"],
     )
+    sds_dsfb = fe_sfnet
     sds_dsfb.add_argument("--d_model", type=int, default=128)
-    sds_dsfb.add_argument("--n_blocks", type=int, default=1, help="Number of DSFB encoder layers")
-    sds_dsfb.add_argument("--max_len", type=int, default=128, help="Maximum token length after the front-end")
+    sds_dsfb.add_argument("--n_blocks", type=int, default=1, help="Number of SF Blocks")
+    sds_dsfb.add_argument("--max_len", type=int, default=128, help="Maximum token length after RFE-Stem")
     sds_dsfb.add_argument("--dropout", type=float, default=0.1)
     sds_dsfb.add_argument("--mlp_ratio", type=float, default=1.5)
     sds_dsfb.add_argument("--nhead", type=int, default=4, help="Number of heads for self-attention ablation")
@@ -519,7 +520,7 @@ def build_parser():
     sds_dsfb.add_argument("--no_identity_branch", action="store_true",
                           help="Ablation: drop the identity (skip) branch inside SDS blocks")
     sds_dsfb.add_argument("--no_sds_frontend", action="store_true",
-                          help="Ablation A1: replace the SDS front-end with a plain stem + strided conv front-end")
+                          help="Ablation A1: replace RFE-Stem with a plain stem + strided conv front-end")
     sds_dsfb.add_argument("--matched_conv_frontend", action="store_true",
                           help="Ablation A1B: use a parameter-matched plain Conv front-end when --no_sds_frontend is set")
     sds_dsfb.add_argument(
@@ -540,9 +541,9 @@ def build_parser():
                                "'gap' (default, current) adds the time-pooled previous-scale summary with unit "
                                "coefficient; 'full' adds the entire previous-scale tensor.")
     sds_dsfb.add_argument("--frontend_dilations", type=str, default="1,4,12",
-                          help="Comma-separated dilations for the SDS front-end")
+                          help="Comma-separated dilations for RFE-Stem")
     sds_dsfb.set_defaults(snr_list="-12,-11,-10,-9,-8,-7,-6,-5,-4,-2,0,2,4,6,8,10,12")
-    sds_dsfb.set_defaults(run_fn=run_sds_dsfb)
+    sds_dsfb.set_defaults(run_fn=run_fe_sfnet)
 
     return parser
 
@@ -560,3 +561,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
