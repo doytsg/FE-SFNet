@@ -1,0 +1,64 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+.venv/
+venv/
+env/
+
+# Datasets
+data/
+PU_extracted/
+*.zip
+*.rar
+*.7z
+
+# Training outputs
+logs*/
+results*/
+output/
+outputs/
+runs/
+checkpoints/
+weights/
+tsne_outputs*/
+*.pth
+*.pt
+*.ckpt
+*.onnx
+training_history_*.png
+noise_robustness_*.png
+confusion_matrix_*.png
+
+# Paper/build artifacts and generated documents
+latex_build*/
+word_conversion/
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
+*.pdf
+*.docx
+*.emf
+*.vsdx
+
+# Research scratch/output folders
+downloads/
+papers/
+paper_search_outputs/
+tmp/
+tmp_*/
+assets/
+__local__/
+
+# Local editor and OS files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
